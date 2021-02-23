@@ -1,11 +1,11 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:percent
 #     text_representation:
 #       extension: .py
-#       format_name: light
-#       format_version: '1.5'
+#       format_name: percent
+#       format_version: '1.3'
 #       jupytext_version: 1.10.2
 #   kernelspec:
 #     display_name: Python 3
@@ -13,9 +13,11 @@
 #     name: python3
 # ---
 
+# %%
 import numpy as np
 
 
+# %%
 class NeuralNet:
     def __init__(self,input_size,output_size=1):
         self.structure=[input_size,output_size]
@@ -62,4 +64,4 @@ class NeuralNet:
             return NeuralNet.tanh(X)
         elif activation == "relu":
             return NeuralNet.relu(X)
-            
+
