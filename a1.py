@@ -19,49 +19,59 @@ import numpy as np
 
 # %%
 class NeuralNet:
-    def __init__(self,input_size,output_size=1):
-        self.structure=[input_size,output_size]
-        self.weights = []
-        self.bias = []
-        
-    def addlayer(self,layer_size):
-        self.structure=self.structure[:-1]+[layer_size]+self.structure[-1]
-        
-    def train(self,initialization_type="random",activation="sigmoid"):
-        self.init_type = initialization_type
-        self.activation = activation
-        if self.init_type == "random":
-            for i in range(1,len(self.structure)):
-                self.weights.append(np.random.rand(self.structure[i],self.structure[i-1]))
-                self.bias.append(np.random.rand(self.structure[i],1))
-        elif self.init_type=="xavier":
-            #to do
-            pass
-        else:
-            print("Unidentified initialization type")
-    
-    def predict(self,X):
-        preds = X
-        for i in range(len(self.weights)):
-            preds = NeuralNet.activate(np.matmul(self.weights[i],preds)+self.bias[i],self.activation)
-            
-        return preds
-    
+
+    @staticmethod
     def sigmoid(X):
-        X = np.clip(X,-700,700)
-        return 1/(1.+np.exp(-X))
+        X = np.clip( X, -700, 700)
+        return 1 / (1. + np.exp(-X))
             
+    @staticmethod
     def tanh(X):
-        pass
+        return (1 - np.exp(-2*X)) / (1 + np.exp(-2*X))
         
+        
+    @staticmethod
     def relu(X):
-        pass
+        return np.where( X<0, 0, X)
         
-    def activate(X,activation):
+    @staticmethod
+    def activate( X, activation):
         if activation == "sigmoid":
             return NeuralNet.sigmoid(X)
         elif activation == "tanh":
             return NeuralNet.tanh(X)
         elif activation == "relu":
             return NeuralNet.relu(X)
+        else:
+            raise(ValueError("Unknown activation \"" + activation + "\""))
 
+    def __init__( self, input_size, output_size = 1):
+        self.structure = [ input_size, output_size]
+        self.weights = []
+        self.bias = []
+        
+    def addlayer( self, layer_size):
+        self.structure = self.structure[:-1] + [ layer_size, self.structure[-1]]
+        
+    def train( self, initialization_type = "random", activation = "sigmoid"):
+        self.init_type = initialization_type
+        self.activation = activation
+        if self.init_type == "random":
+            for i in range( 1, len(self.structure)):
+                self.weights.append( np.random.rand( self.structure[i], self.structure[i-1]))
+                self.bias.append( np.random.rand( self.structure[i], 1))
+        elif self.init_type == "xavier":
+            #TODO implement xavier initialization
+            pass
+        else:
+            print(self.init_type + ": unidentified initialization type")
+    
+    def predict( self, X):
+        predictions = X
+        for i in range(len(self.weights)):
+            predictions = NeuralNet.activate( np.matmul( self.weights[i], predictions) +\
+                 self.bias[i], self.activation)
+        return predictions
+    
+
+# %%
