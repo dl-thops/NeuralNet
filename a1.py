@@ -47,31 +47,59 @@ class NeuralNet:
 
     def __init__( self, input_size, output_size = 1):
         self.structure = [ input_size, output_size]
-        self.weights = []
-        self.bias = []
+        self.params = {}
         
     def addlayer( self, layer_size):
         self.structure = self.structure[:-1] + [ layer_size, self.structure[-1]]
         
-    def train( self, initialization_type = "random", activation = "sigmoid"):
+    def train( self,X,Y,numepochs = 100,learning_rate = 0.1,initialization_type = "random", activation = "sigmoid"):
         self.init_type = initialization_type
         self.activation = activation
         if self.init_type == "random":
             for i in range( 1, len(self.structure)):
-                self.weights.append( np.random.rand( self.structure[i], self.structure[i-1]))
-                self.bias.append( np.random.rand( self.structure[i], 1))
+                self.params["w"+str(i)]= np.random.rand( self.structure[i], self.structure[i-1])-0.5
+                self.params["b"+str(i)]= np.random.rand( self.structure[i], 1)-0.5
         elif self.init_type == "xavier":
             #TODO implement xavier initialization
             pass
         else:
             print(self.init_type + ": unidentified initialization type")
+        layers = len(self.structure)-1
+        nsamples = X.shape[1]
+        for epoch in range(numepochs):
+            grads = {}
+            values = self.predict(X,1)
+            grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T - values["h"+str(layers)]
+            for ii in np.arange(layers-1,0,-1):
+                grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
+                grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
+            for ii in np.arange(layers,0,-1):
+                grads["w"+str(ii)] = np.matmul(grads["a"+str(ii)].reshape(nsamples,-1,1),values["h"+str(ii-1)].reshape(nsamples,1,-1))
+                grads["b"+str(ii)] = grads["a"+str(ii)]
+            for ii in np.arange(1,layers+1):
+                self.params["w"+str(ii)] -= learning_rate * np.sum(grads["w"+str(ii)],axis=0)
+                self.params["b"+str(ii)] -= learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
     
-    def predict( self, X):
+    
+    def predict(self,X,returndict = 0):
         predictions = X
-        for i in range(len(self.weights)):
-            predictions = NeuralNet.activate( np.matmul( self.weights[i], predictions) +\
-                 self.bias[i], self.activation)
-        return predictions
+        values = {}
+        values["h0"] = X.copy()
+        layers = len(self.structure)-1
+        for i in range(layers-1):
+            predictions = np.matmul( self.params["w"+str(i+1)], predictions) + self.params["b"+str(i+1)]
+            values["a"+str(i+1)]=predictions.copy()
+            predictions = NeuralNet.activate(predictions,self.activation)
+            values["h"+str(i+1)]=predictions.copy()
+        predictions = np.matmul( self.params["w"+str(layers)], predictions) + self.params["b"+str(layers)]
+        values["a"+str(layers)]=predictions.copy()
+        predictions = np.exp(predictions)/np.sum(np.exp(predictions),axis=0)
+        print(predictions)
+        values["h"+str(layers)]=predictions.copy()
+        if returndict ==0:
+            return predictions
+        else:
+            return values
+        
     
 
-# %%
