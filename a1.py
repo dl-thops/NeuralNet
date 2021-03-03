@@ -70,8 +70,8 @@ class NeuralNet:
                 self.params["b"+str(i)]= np.random.rand( self.structure[i], 1)-0.5
         elif self.init_type == "xavier":
             for i in range(1,len(self.structure)):
-                self.params["w"+str(i)]= np.normal(0,1/sqrt(self.structure[i-1]+structure[i]),(self.structure[i],self.structure[i-1]))
-                self.params["b"+str(i)]= np.normal(0,1/sqrt(self.structure[i-1]+structure[i]),self.structure[i])
+                self.params["w"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],self.structure[i-1]))
+                self.params["b"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],1))
         else:
             print(self.init_type + ": unidentified initialization type")
         layers = len(self.structure)-1
