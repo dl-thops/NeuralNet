@@ -62,7 +62,7 @@ class NeuralNet:
         
     def addlayer( self, layer_size):
         self.structure = self.structure[:-1] + [ layer_size, self.structure[-1]]
-        None
+        
     def initialise_params(self,initialization_type):
         self.init_type = initialization_type
         if self.init_type == "random":
@@ -71,39 +71,49 @@ class NeuralNet:
                 self.params["b"+str(i)]= np.random.rand( self.structure[i], 1)-0.5
         elif self.init_type == "xavier":
             for i in range(1,len(self.structure)):
-                self.params["w"+str(i)]= np.normal(0,1/sqrt(self.structure[i-1]+structure[i]),(self.structure[i],self.structure[i-1]))
-                self.params["b"+str(i)]= np.normal(0,1/sqrt(self.structure[i-1]+structure[i]),self.structure[i])
+                self.params["w"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],self.structure[i-1]))
+                self.params["b"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],1))
         else:
             print(self.init_type + ": unidentified initialization type")    
     
-    def do_sgd(self,X,Y,learning_rate):
+    @staticmethod
+    def activation_gradient(A,activation):
+        if activation == "sigmoid":
+            return np.multiply(A,(1-A))
+        elif activation == "tanh":
+            return 1 - np.square(A)
+        elif activation == "relu":
+            A[A>0] = 1
+            A[A<0] = 0
+            return A
+        else:
+            raise(ValueError("Unknown activation \"" + activation + "\""))
+
+    def calculate_grads(self,X,Y):
         grads = {}
         values = self.predict(X,returndict=1)
         layers = len(self.structure)-1
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
         nsamples = X.shape[1]
+        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
         for ii in np.arange(layers-1,0,-1):
             grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
+            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],self.activation_gradient(values["h"+str(ii)],self.activation))
         for ii in np.arange(layers,0,-1):
             grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
             grads["b"+str(ii)] = grads["a"+str(ii)]
+        return grads
+
+    def do_sgd(self,X,Y,update,learning_rate):
+        layers = len(self.structure)-1
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             self.params["w"+str(ii)] -= learning_rate * np.sum(grads["w"+str(ii)],axis=0)
             self.params["b"+str(ii)] -= learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+        return update
 
     def do_momentum(self,X,Y,update,gamma,learning_rate):
         layers = len(self.structure)-1
-        grads = {}
-        nsamples = X.shape[1]
-        values = self.predict(X,returndict=1)
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
-        for ii in np.arange(layers-1,0,-1):
-            grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
-        for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
-            grads["b"+str(ii)] = grads["a"+str(ii)]
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             update["w"+str(ii)]=gamma * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
             update["b"+str(ii)]=gamma * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
@@ -113,19 +123,10 @@ class NeuralNet:
 
     def do_nesterov(self,X,Y,update,gamma,learning_rate):
         layers = len(self.structure)-1
-        grads = {}
-        nsamples = X.shape[1]
         for ii in range(1,layers+1):
             self.params["w"+str(ii)] -= gamma * update["w"+str(ii)]
             self.params["b"+str(ii)] -= gamma * update["b"+str(ii)]
-        values = self.predict(X,returndict=1)
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
-        for ii in np.arange(layers-1,0,-1):
-            grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
-        for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
-            grads["b"+str(ii)] = grads["a"+str(ii)]
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             update["w"+str(ii)]=gamma * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
             update["b"+str(ii)]=gamma * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
@@ -135,16 +136,7 @@ class NeuralNet:
 
     def do_rmsprop(self,X,Y,update,learning_rate,beta,epsilon):
         layers = len(self.structure)-1
-        grads = {}
-        nsamples = X.shape[1]
-        values = self.predict(X,returndict=1)
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
-        for ii in np.arange(layers-1,0,-1):
-            grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
-        for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
-            grads["b"+str(ii)] = grads["a"+str(ii)]
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             update["w"+str(ii)] = beta*update["w"+str(ii)] + (1-beta)*np.square(np.sum(grads["w"+str(ii)],axis=0))
             update["b"+str(ii)] = beta*update["b"+str(ii)] + (1-beta)*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
@@ -154,16 +146,7 @@ class NeuralNet:
 
     def do_adam(self,X,Y,update,learning_rate,epsilon,beta1,beta2,step_num):
         layers = len(self.structure)-1
-        grads = {}
-        nsamples = X.shape[1]
-        values = self.predict(X,returndict=1)
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
-        for ii in np.arange(layers-1,0,-1):
-            grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
-        for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
-            grads["b"+str(ii)] = grads["a"+str(ii)]
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             update["mw"+str(ii)] = beta1*update["mw"+str(ii)] + (1-beta1)*np.sum(grads["w"+str(ii)],axis=0)
             update["mb"+str(ii)] = beta1*update["mb"+str(ii)] + (1-beta1)*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
@@ -177,16 +160,7 @@ class NeuralNet:
     
     def do_nadam(self,X,Y,update,learning_rate,epsilon,beta1,beta2,step_num):
         layers = len(self.structure)-1
-        grads = {}
-        nsamples = X.shape[1]
-        values = self.predict(X,returndict=1)
-        grads["a"+str(layers)] = -(np.eye(self.structure[-1])[Y]).T + values["h"+str(layers)]
-        for ii in np.arange(layers-1,0,-1):
-            grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
-            grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],np.multiply(values["h"+str(ii)],(1-values["h"+str(ii)])))
-        for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1))
-            grads["b"+str(ii)] = grads["a"+str(ii)]
+        grads = self.calculate_grads(X,Y)
         for ii in np.arange(1,layers+1):
             update["mw"+str(ii)] = beta1*update["mw"+str(ii)] + (1-beta1)*np.sum(grads["w"+str(ii)],axis=0)
             update["mb"+str(ii)] = beta1*update["mb"+str(ii)] + (1-beta1)*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
@@ -210,61 +184,39 @@ class NeuralNet:
             update["mb"+str(i)]=np.zeros(self.params["b"+str(i)].shape)
             update["vw"+str(i)]=np.zeros(self.params["w"+str(i)].shape)
             update["vb"+str(i)]=np.zeros(self.params["b"+str(i)].shape) 
-        step_num = 0
+            #TODO: remove update initialisation. Pass {}. Enforce dict.get(key,0)
+        step_count = 0
         for i in range(numepochs):
             for j in tqdm(range(math.ceil(X.shape[1]/batch_size))):
                 X_pass = X[:,j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 Y_pass = Y[j*batch_size:min(X.shape[1],(j+1)*batch_size)]
-                step_num +=1
+                step_count +=1
                 if optimiser == "sgd":
-                    self.do_sgd(X_pass,Y_pass,learning_rate)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
+                    update = self.do_sgd(X_pass,Y_pass,update,learning_rate)
                 elif optimiser == "momentum":
                     update = self.do_momentum(X_pass,Y_pass,update,gamma,learning_rate)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
                 elif optimiser == "nesterov":
                     update = self.do_nesterov(X_pass,Y_pass,update,gamma,learning_rate)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
                 elif optimiser == "rmsprop":
                     update = self.do_rmsprop(X_pass,Y_pass,update,learning_rate,beta,epsilon)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
                 elif optimiser == "adam":
-                    update = self.do_adam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_num)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
+                    update = self.do_adam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_count)
                 elif optimiser == "nadam":
-                    update = self.do_nadam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_num)
-                    Y_pred = self.predict(X)
-                    self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
-                    self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
-                    self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
-                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
-                    
+                    update = self.do_nadam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_count)
+                else:
+                    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
+                Y_pred = self.predict(X)
+                self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
+                self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
+                self.losses.append(np.sum(-np.log(np.choose(Y,Y_pred))))
+                wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
 
 
     def train(self,X,Y,numepochs = 100,learning_rate = 0.1,initialization_type = "random",activation = "sigmoid",\
               optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=3,batch_size = 32,beta=0.99,\
               epsilon=0.0000001,beta1=0.9,beta2=0.999):
-        #TODO : Assert init_params is true for the first time.
+        if init_params == False and self.params == {}:
+            raise(UnboundLocalError("Weights and Biases not initialized. Set init_params to True."))
         if init_params == True:
             self.initialise_params(initialization_type)
             self.activation = activation
@@ -285,23 +237,27 @@ class NeuralNet:
 
     
     def predict(self,X,returndict = 0,returnclass = 0):
-        #TODO : dont calculate dict unless returndict =1
         predictions = X
-        values = {}
-        values["h0"] = X
+        if returndict == 1:
+            values = {}
+            values["h0"] = X
         layers = len(self.structure)-1
         for i in range(layers-1):
             predictions = np.matmul( self.params["w"+str(i+1)], predictions) + self.params["b"+str(i+1)]
-            values["a"+str(i+1)]=predictions
+            if returndict == 1:    
+                values["a"+str(i+1)]=predictions
             predictions = NeuralNet.activate(predictions,self.activation)
-            values["h"+str(i+1)]=predictions
+            if returndict == 1:
+                values["h"+str(i+1)]=predictions
         predictions = np.matmul( self.params["w"+str(layers)], predictions) + self.params["b"+str(layers)]
-        values["a"+str(layers)]=predictions
+        if returndict == 1:
+            values["a"+str(layers)]=predictions
         if returnclass == 1:
             return np.argmax(predictions,axis=0)
         np.clip(predictions,-700,700)
         predictions = np.exp(predictions)/np.sum(np.exp(predictions),axis=0)
-        values["h"+str(layers)]=predictions
+        if returndict == 1:
+            values["h"+str(layers)]=predictions
         if returndict ==0:
             return predictions
         else:
@@ -315,8 +271,8 @@ X_train = X_train.reshape(X_train.shape[0],-1).T/256
 X_test = X_test.reshape(X_test.shape[0],-1).T/256
 
 # %%
-wandb.config.update({"dataset":"fashion_mnist","input_size":784,"output_size":10,"hidden_layers":[20,10],"epochs":3,\
-                     "learning_rate":0.007,"batch_size":64,"initialization_type":"random","activation":"sigmoid",\
+wandb.config.update({"dataset":"fashion_mnist","input_size":784,"output_size":10,"hidden_layers":[128,64,64,32],"epochs":3,\
+                     "learning_rate":0.001,"batch_size":64,"initialization_type":"xavier","activation":"sigmoid",\
                 "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":7,"beta":0.99,"epsilon":0.0000001,\
                 "beta1":0.9,"beta2":0.999})
 
@@ -328,5 +284,8 @@ nn.train(X_train,Y_train,wandb.config["epochs"],wandb.config["learning_rate"],\
          initialization_type=wandb.config["initialization_type"],activation=wandb.config["activation"],optimiser=wandb.config["optimiser"],\
          gamma=wandb.config["gamma"],batch_size=wandb.config["batch_size"],train_test_split=wandb.config["train_test_split"],seed=wandb.config["seed"],\
          beta=wandb.config["beta"],epsilon=wandb.config["epsilon"],beta1=wandb.config["beta1"],beta2=wandb.config["beta2"])
+
+# %%
+current_wandb_run.finish()
 
 # %%
