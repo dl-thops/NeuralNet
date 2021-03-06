@@ -138,8 +138,8 @@ class NeuralNet:
             self.params["b"+str(ii)] -= kwargs["gamma"] * update.get("b"+str(ii),0)
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["w"+str(ii)] = kwargs["gamma"] * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
-            update["b"+str(ii)] = kwargs["gamma"] * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+            update["w"+str(ii)] = kwargs["gamma"] * update.get("w"+str(ii),0) + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
+            update["b"+str(ii)] = kwargs["gamma"] * update.get("b"+str(ii),0) + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
             self.params["w"+str(ii)] -= update["w"+str(ii)]
             self.params["b"+str(ii)] -= update["b"+str(ii)]
         return update
@@ -206,11 +206,8 @@ class NeuralNet:
                 X_pass = X[:,j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 Y_pass = Y[j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 step_count += 1
-                try:
-                    update = (self.optimisers[optimiser])( X_pass, Y_pass, update, learning_rate, gamma = gamma, beta = beta,\
+                update = (self.optimisers[optimiser])( X_pass, Y_pass, update, learning_rate, gamma = gamma, beta = beta,\
                         beta1 = beta1, beta2 = beta2, epsilon = epsilon, l2_reg_param = l2_reg_param, step_num = step_count)
-                except:
-                    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
                 Y_pred = self.predict(X)
                 self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
                 self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
@@ -273,7 +270,7 @@ class NeuralNet:
             return predictions
         else:
             return values
-
+            
 # %%
 (X_train,Y_train),(X_test,Y_test) = fashion_mnist.load_data()
 
