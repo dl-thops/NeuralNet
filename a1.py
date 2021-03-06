@@ -27,7 +27,8 @@ current_wandb_run = wandb.init(project = "fdl-a1",entity = "fdl-thops",config = 
                     "output_size":10,"hidden_layers":[16,16],"epochs":1,"learning_rate":0.01,\
                     "batch_size":128,"initialization_type":"xavier","activation":"sigmoid",\
                     "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":None,"beta":0.99,\
-                    "epsilon":0.0000001,"beta1":0.9,"beta2":0.999,"l2_reg_param":0,"init_params":True})
+                    "epsilon":0.0000001,"beta1":0.9,"beta2":0.999,"l2_reg_param":0,"init_params":True,\
+                    "hidden_1":32,"hidden_2":32,"hidden_3":32,"hidden_4":32,"hidden_5":32})
 
 
 # %%
@@ -191,7 +192,7 @@ class NeuralNet:
             weight_sum += np.sum(np.square(self.params["w"+str(ii)]))
         if Y_pred is None:
             Y_pred = self.predict(X)
-        return np.sum(-np.log(np.choose(Y,Y_pred))) + (l2_reg_param/2)*weight_sum
+        return (np.sum(-np.log(np.choose(Y,Y_pred))) + (l2_reg_param/2)*weight_sum) / len(Y)
         
 
     def do_back_prop(self,X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param):
@@ -286,12 +287,24 @@ dataset_labels = { 0:"T-shirt/top", 1:"Trouser/pants", 2:"Pullover shirt", 3:"Dr
 
 # %%
 nn = NeuralNet(wandb.config["input_size"],wandb.config["output_size"])
-for hidden_layer_size in wandb.config["hidden_layers"]:
-    nn.addlayer(hidden_layer_size)
+nn.addlayer(wandb.config["hidden_1"])
+nn.addlayer(wandb.config["hidden_2"])
+nn.addlayer(wandb.config["hidden_3"])
+if wandb.config["hidden_4"] != 0 and wandb.config["hidden_5"] != 0:
+    nn.addlayer(wandb.config["hidden_4"])
+    nn.addlayer(wandb.config["hidden_5"])
+elif wandb.config["hidden_4"] != 0 and wandb.config["hidden_5"] == 0:
+    nn.addlayer(wandb.config["hidden_4"])
+elif wandb.config["hidden_4"] == 0 and wandb.config["hidden_5"] == 0:
+    pass
+else:
+    current_wandb_run.finish()
+
 nn.train(X_train,Y_train,wandb.config["epochs"],wandb.config["learning_rate"],\
          initialization_type=wandb.config["initialization_type"],activation=wandb.config["activation"],optimiser=wandb.config["optimiser"],\
          gamma=wandb.config["gamma"],batch_size=wandb.config["batch_size"],train_test_split=wandb.config["train_test_split"],seed=wandb.config["seed"],\
-         beta=wandb.config["beta"],epsilon=wandb.config["epsilon"],beta1=wandb.config["beta1"],beta2=wandb.config["beta2"],l2_reg_param=wandb.config["l2_reg_param"],init_params=wandb.config["init_params"])
+         beta=wandb.config["beta"],epsilon=wandb.config["epsilon"],beta1=wandb.config["beta1"],beta2=wandb.config["beta2"],\
+         l2_reg_param=wandb.config["l2_reg_param"],init_params=wandb.config["init_params"])
 
 # %%
 current_wandb_run.finish()
