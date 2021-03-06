@@ -26,7 +26,7 @@ wandb.login()
 current_wandb_run = wandb.init(project = "fdl-a1",entity = "fdl-thops",config = {"dataset":"fashion_mnist","input_size":784,\
                     "output_size":10,"hidden_layers":[16,16],"epochs":1,"learning_rate":0.01,\
                     "batch_size":128,"initialization_type":"xavier","activation":"sigmoid",\
-                    "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":7,"beta":0.99,\
+                    "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":None,"beta":0.99,\
                     "epsilon":0.0000001,"beta1":0.9,"beta2":0.999,"l2_reg_param":0,"init_params":True})
 
 
@@ -199,25 +199,31 @@ class NeuralNet:
         update = {}
         step_count = 0
         for i in range(numepochs):
+            wandb.log({"Sample Data":[wandb.Image(X[:,jj].reshape(28,28),caption=dataset_labels[Y[jj]])\
+                                      for jj in range(20*i,20*i+20)]},commit = False)
             for j in tqdm(range(math.ceil(X.shape[1]/batch_size))):
                 X_pass = X[:,j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 Y_pass = Y[j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 step_count += 1
-                #try:
-                update = (self.optimisers[optimiser])( X_pass, Y_pass, update, learning_rate, gamma = gamma, beta = beta,\
+                try:
+                    update = (self.optimisers[optimiser])( X_pass, Y_pass, update, learning_rate, gamma = gamma, beta = beta,\
                         beta1 = beta1, beta2 = beta2, epsilon = epsilon, l2_reg_param = l2_reg_param, step_num = step_count)
-                #except:
-                #    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
+                except:
+                    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
                 Y_pred = self.predict(X)
                 self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
                 self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
                 self.losses.append(self.get_loss(None,Y,l2_reg_param,Y_pred))
-                wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"cv_acc":self.cvaccuracies[-1]})
+                self.cvlosses.append(self.get_loss(X_cv,Y_cv,l2_reg_param))
+                wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"val_acc":self.cvaccuracies[-1],\
+                           "val_loss":self.cvlosses[-1],"step_count":step_count})
 
 
     def train(self,X,Y,numepochs = 100,learning_rate = 0.1,initialization_type = "random",activation = "sigmoid",\
-              optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=3,batch_size = 32,beta=0.99,\
+              optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=None,batch_size = 32,beta=0.99,\
               epsilon=0.0000001,beta1=0.9,beta2=0.999,l2_reg_param=0):
+        if seed is None:
+            seed = np.random.randint(1,1000)
         if init_params == False and self.params == {}:
             raise(UnboundLocalError("Weights and Biases not initialized. Set init_params to True."))
         if init_params == True:
@@ -236,6 +242,7 @@ class NeuralNet:
         self.accuracies = []
         self.cvaccuracies = []
         self.losses = []
+        self.cvlosses = []
         self.do_back_prop(X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param)
 
     
@@ -274,10 +281,8 @@ X_train = X_train.reshape(X_train.shape[0],-1).T/256
 X_test = X_test.reshape(X_test.shape[0],-1).T/256
 
 # %%
-wandb.config.update({"dataset":"fashion_mnist","input_size":784,"output_size":10,"hidden_layers":[64,64,32],"epochs":3,\
-                     "learning_rate":0.01,"batch_size":64,"initialization_type":"xavier","activation":"sigmoid",\
-                "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":7,"beta":0.99,"epsilon":0.0000001,\
-                "beta1":0.9,"beta2":0.999,"l2_reg_param":0,"init_params":True})
+dataset_labels = { 0:"T-shirt/top", 1:"Trouser/pants", 2:"Pullover shirt", 3:"Dress", 4:"Coat",\
+                5:"Sandal", 6:"Shirt", 7:"Sneaker", 8:"Bag", 9:"Ankle boot"}
 
 # %%
 nn = NeuralNet(wandb.config["input_size"],wandb.config["output_size"])
