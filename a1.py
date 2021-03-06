@@ -19,12 +19,15 @@ from keras.datasets import fashion_mnist
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import math
-# !pip install wandb       #TODO: Comment this before submitting
 import wandb
 
 # %%
 wandb.login()
-wandb.init(project="fdl-a1",entity = "fdl-thops")
+current_wandb_run = wandb.init(project = "fdl-a1",entity = "fdl-thops",config = {"dataset":"fashion_mnist","input_size":784,\
+                    "output_size":10,"hidden_layers":[16,16],"epochs":1,"learning_rate":0.01,\
+                    "batch_size":128,"initialization_type":"xavier","activation":"sigmoid",\
+                    "optimiser":"nadam","gamma":0.1,"train_test_split":0.2,"seed":7,"beta":0.99,\
+                    "epsilon":0.0000001,"beta1":0.9,"beta2":0.999,"l2_reg_param":0,"init_params":True})
 
 
 # %%
@@ -37,7 +40,7 @@ class NeuralNet:
             
     @staticmethod
     def tanh(X):
-        X = np.clip(X,-350,350)
+        X = np.clip( X, -350, 350)
         return (1 - np.exp(-2*X)) / (1 + np.exp(-2*X))
         
         
@@ -46,7 +49,7 @@ class NeuralNet:
         return np.where( X<0, 0, X)
         
     @staticmethod
-    def activate( X, activation):
+    def activate( X, activation = "sigmoid"):
         if activation == "sigmoid":
             return NeuralNet.sigmoid(X)
         elif activation == "tanh":
@@ -59,25 +62,29 @@ class NeuralNet:
     def __init__( self, input_size, output_size = 2):
         self.structure = [ input_size, output_size]
         self.params = {}
+        self.optimisers = {"sgd":self.do_sgd,"momentum":self.do_momentum,"nesterov":self.do_nesterov,\
+                           "rmsprop":self.do_rmsprop,"adam":self.do_adam,"nadam":self.do_nadam}
         
     def addlayer( self, layer_size):
         self.structure = self.structure[:-1] + [ layer_size, self.structure[-1]]
         
-    def initialise_params(self,initialization_type):
+    def initialise_params( self, initialization_type = "random"):
         self.init_type = initialization_type
         if self.init_type == "random":
             for i in range( 1, len(self.structure)):
-                self.params["w"+str(i)]= np.random.rand( self.structure[i], self.structure[i-1])-0.5
-                self.params["b"+str(i)]= np.random.rand( self.structure[i], 1)-0.5
+                self.params["w"+str(i)] = np.random.rand( self.structure[i], self.structure[i-1]) - 0.5
+                self.params["b"+str(i)] = np.random.rand( self.structure[i], 1) - 0.5
         elif self.init_type == "xavier":
             for i in range(1,len(self.structure)):
-                self.params["w"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],self.structure[i-1]))
-                self.params["b"+str(i)]= np.random.normal(0,1/np.sqrt(self.structure[i-1]+self.structure[i]),(self.structure[i],1))
+                self.params["w"+str(i)] = np.random.normal(0,1/np.sqrt(self.structure[i-1]+\
+                                                    self.structure[i]),(self.structure[i],self.structure[i-1]))
+                self.params["b"+str(i)] = np.random.normal(0,1/np.sqrt(self.structure[i-1]+\
+                                                    self.structure[i]),(self.structure[i],1))
         else:
             print(self.init_type + ": unidentified initialization type")    
     
     @staticmethod
-    def activation_gradient(A,activation):
+    def activation_gradient( A, activation = "sigmoid"):
         if activation == "sigmoid":
             return np.multiply(A,(1-A))
         elif activation == "tanh":
@@ -89,7 +96,7 @@ class NeuralNet:
         else:
             raise(ValueError("Unknown activation \"" + activation + "\""))
 
-    def calculate_grads(self,X,Y,l2_reg_param):
+    def calculate_grads( self, X, Y, l2_reg_param):
         grads = {}
         values = self.predict(X,returndict=1)
         layers = len(self.structure)-1
@@ -99,80 +106,83 @@ class NeuralNet:
             grads["h"+str(ii)] = np.matmul(self.params["w"+str(ii+1)].T,grads["a"+str(ii+1)])
             grads["a"+str(ii)] = np.multiply(grads["h"+str(ii)],self.activation_gradient(values["h"+str(ii)],self.activation))
         for ii in np.arange(layers,0,-1):
-            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),(values["h"+str(ii-1)].T).reshape(nsamples,1,-1)) \
+            grads["w"+str(ii)] = np.matmul((grads["a"+str(ii)].T).reshape(nsamples,-1,1),\
+                                    (values["h"+str(ii-1)].T).reshape(nsamples,1,-1)) \
                                     + (l2_reg_param/nsamples) * self.params["w"+str(ii)]
             grads["b"+str(ii)] = grads["a"+str(ii)]
         return grads
 
-    def do_sgd(self,X,Y,update,learning_rate,l2_reg_param):
+    def do_sgd( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
             self.params["w"+str(ii)] -= learning_rate * np.sum(grads["w"+str(ii)],axis=0)
             self.params["b"+str(ii)] -= learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
         return update
 
-    def do_momentum(self,X,Y,update,gamma,learning_rate,l2_reg_param):
+    def do_momentum( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["w"+str(ii)]=gamma * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
-            update["b"+str(ii)]=gamma * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+            update["w"+str(ii)] = kwargs["gamma"] * update.get("w"+str(ii),0) + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
+            update["b"+str(ii)] = kwargs["gamma"] * update.get("b"+str(ii),0) + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
             self.params["w"+str(ii)] -= update["w"+str(ii)]
             self.params["b"+str(ii)] -= update["b"+str(ii)]
         return update
 
-    def do_nesterov(self,X,Y,update,gamma,learning_rate,l2_reg_param):
+    def do_nesterov( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
         for ii in range(1,layers+1):
-            self.params["w"+str(ii)] -= gamma * update["w"+str(ii)]
-            self.params["b"+str(ii)] -= gamma * update["b"+str(ii)]
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+            self.params["w"+str(ii)] -= kwargs["gamma"] * update.get("w"+str(ii),0)
+            self.params["b"+str(ii)] -= kwargs["gamma"] * update.get("b"+str(ii),0)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["w"+str(ii)]=gamma * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
-            update["b"+str(ii)]=gamma * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+            update["w"+str(ii)] = kwargs["gamma"] * update["w"+str(ii)] + learning_rate * np.sum(grads["w"+str(ii)],axis=0)
+            update["b"+str(ii)] = kwargs["gamma"] * update["b"+str(ii)] + learning_rate * np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
             self.params["w"+str(ii)] -= update["w"+str(ii)]
             self.params["b"+str(ii)] -= update["b"+str(ii)]
         return update
 
-    def do_rmsprop(self,X,Y,update,learning_rate,beta,epsilon,l2_reg_param):
+    def do_rmsprop( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["w"+str(ii)] = beta*update["w"+str(ii)] + (1-beta)*np.square(np.sum(grads["w"+str(ii)],axis=0))
-            update["b"+str(ii)] = beta*update["b"+str(ii)] + (1-beta)*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
-            self.params["w"+str(ii)] -= np.multiply((learning_rate/ np.sqrt(epsilon + update["w"+str(ii)])), np.sum(grads["w"+str(ii)],axis=0))
-            self.params["b"+str(ii)] -= np.multiply((learning_rate / np.sqrt(epsilon + update["b"+str(ii)])), np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
+            update["w"+str(ii)] = kwargs["beta"]*update.get("w"+str(ii),0) + (1-kwargs["beta"])*np.square(np.sum(grads["w"+str(ii)],axis=0))
+            update["b"+str(ii)] = kwargs["beta"]*update.get("b"+str(ii),0) + (1-kwargs["beta"])*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
+            self.params["w"+str(ii)] -= np.multiply((learning_rate/ np.sqrt(kwargs["epsilon"] + update["w"+str(ii)])),\
+                                                    np.sum(grads["w"+str(ii)],axis=0))
+            self.params["b"+str(ii)] -= np.multiply((learning_rate / np.sqrt(kwargs["epsilon"] + update["b"+str(ii)])),\
+                                                    np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
         return update
 
-    def do_adam(self,X,Y,update,learning_rate,epsilon,beta1,beta2,step_num,l2_reg_param):
+    def do_adam( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["mw"+str(ii)] = beta1*update["mw"+str(ii)] + (1-beta1)*np.sum(grads["w"+str(ii)],axis=0)
-            update["mb"+str(ii)] = beta1*update["mb"+str(ii)] + (1-beta1)*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
-            update["vw"+str(ii)] = beta2*update["vw"+str(ii)] + (1-beta2)*np.square(np.sum(grads["w"+str(ii)],axis=0))
-            update["vb"+str(ii)] = beta2*update["vb"+str(ii)] + (1-beta2)*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
-            self.params["w"+str(ii)] -= np.multiply((learning_rate/np.sqrt(epsilon + (update["vw"+str(ii)]/(1-beta2**step_num)))) ,\
-                                                    update["mw"+str(ii)]/(1-beta1**step_num))
-            self.params["b"+str(ii)] -= np.multiply((learning_rate/np.sqrt(epsilon + (update["vb"+str(ii)]/(1-beta2**step_num)))) ,\
-                                                    update["mb"+str(ii)]/(1-beta1**step_num))
+            update["mw"+str(ii)] = kwargs["beta1"]*update.get("mw"+str(ii),0) + (1-kwargs["beta1"])*np.sum(grads["w"+str(ii)],axis=0)
+            update["mb"+str(ii)] = kwargs["beta1"]*update.get("mb"+str(ii),0) + (1-kwargs["beta1"])*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+            update["vw"+str(ii)] = kwargs["beta2"]*update.get("vw"+str(ii),0) + (1-kwargs["beta2"])*np.square(np.sum(grads["w"+str(ii)],axis=0))
+            update["vb"+str(ii)] = kwargs["beta2"]*update.get("vb"+str(ii),0) + (1-kwargs["beta2"])*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
+            self.params["w"+str(ii)] -= np.multiply((learning_rate/np.sqrt(kwargs["epsilon"] + (update["vw"+str(ii)]/(1-kwargs["beta2"]**kwargs["step_num"])))) ,\
+                                                    update["mw"+str(ii)]/(1-kwargs["beta1"]**kwargs["step_num"]))
+            self.params["b"+str(ii)] -= np.multiply((learning_rate/np.sqrt(kwargs["epsilon"] + (update["vb"+str(ii)]/(1-kwargs["beta2"]**kwargs["step_num"])))) ,\
+                                                    update["mb"+str(ii)]/(1-kwargs["beta1"]**kwargs["step_num"]))
         return update
     
-    def do_nadam(self,X,Y,update,learning_rate,epsilon,beta1,beta2,step_num,l2_reg_param):
+    def do_nadam( self, X, Y, update, learning_rate, **kwargs):
         layers = len(self.structure)-1
-        grads = self.calculate_grads(X,Y,l2_reg_param)
+        grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
-            update["mw"+str(ii)] = beta1*update["mw"+str(ii)] + (1-beta1)*np.sum(grads["w"+str(ii)],axis=0)
-            update["mb"+str(ii)] = beta1*update["mb"+str(ii)] + (1-beta1)*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
-            update["vw"+str(ii)] = beta2*update["vw"+str(ii)] + (1-beta2)*np.square(np.sum(grads["w"+str(ii)],axis=0))
-            update["vb"+str(ii)] = beta2*update["vb"+str(ii)] + (1-beta2)*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
-            self.params["w"+str(ii)] -= np.multiply( (learning_rate / np.sqrt(epsilon + (update["vw"+str(ii)]/(1-beta2**step_num)))),\
-                                        beta1*(update["mw"+str(ii)]/(1-beta1**step_num) +\
-                                        ((1-beta1)/(1-beta1**step_num))*np.sum(grads["w"+str(ii)],axis=0) ))
-            self.params["b"+str(ii)] -= np.multiply( (learning_rate / np.sqrt(epsilon + (update["vb"+str(ii)]/(1-beta2**step_num)))),\
-                                        beta1*(update["mb"+str(ii)]/(1-beta1**step_num) +\
-                                        ((1-beta1)/(1-beta1**step_num))*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1) ))
+            update["mw"+str(ii)] = kwargs["beta1"]*update.get("mw"+str(ii),0) + (1-kwargs["beta1"])*np.sum(grads["w"+str(ii)],axis=0)
+            update["mb"+str(ii)] = kwargs["beta1"]*update.get("mb"+str(ii),0) + (1-kwargs["beta1"])*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1)
+            update["vw"+str(ii)] = kwargs["beta2"]*update.get("vw"+str(ii),0) + (1-kwargs["beta2"])*np.square(np.sum(grads["w"+str(ii)],axis=0))
+            update["vb"+str(ii)] = kwargs["beta2"]*update.get("vb"+str(ii),0) + (1-kwargs["beta2"])*np.square(np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1))
+            self.params["w"+str(ii)] -= np.multiply( (learning_rate / np.sqrt(kwargs["epsilon"] + (update["vw"+str(ii)]/(1-kwargs["beta2"]**kwargs["step_num"])))),\
+                                        kwargs["beta1"]*(update["mw"+str(ii)]/(1-kwargs["beta1"]**kwargs["step_num"]) +\
+                                        ((1-kwargs["beta1"])/(1-kwargs["beta1"]**kwargs["step_num"]))*np.sum(grads["w"+str(ii)],axis=0) ))
+            self.params["b"+str(ii)] -= np.multiply( (learning_rate / np.sqrt(kwargs["epsilon"] + (update["vb"+str(ii)]/(1-kwargs["beta2"]**kwargs["step_num"])))),\
+                                        kwargs["beta1"]*(update["mb"+str(ii)]/(1-kwargs["beta1"]**kwargs["step_num"]) +\
+                                        ((1-kwargs["beta1"])/(1-kwargs["beta1"]**kwargs["step_num"]))*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1) ))
         return update
 
     def get_loss(self,X,Y,l2_reg_param=0,Y_pred=None):
@@ -187,34 +197,17 @@ class NeuralNet:
     def do_back_prop(self,X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param):
         layers = len(self.structure)-1
         update = {}
-        for i in range(1,layers+1):
-            update["w"+str(i)]=np.zeros(self.params["w"+str(i)].shape)
-            update["b"+str(i)]=np.zeros(self.params["b"+str(i)].shape) 
-            update["mw"+str(i)]=np.zeros(self.params["w"+str(i)].shape)
-            update["mb"+str(i)]=np.zeros(self.params["b"+str(i)].shape)
-            update["vw"+str(i)]=np.zeros(self.params["w"+str(i)].shape)
-            update["vb"+str(i)]=np.zeros(self.params["b"+str(i)].shape) 
-            #TODO: remove update initialisation. Pass {}. Enforce dict.get(key,0)
         step_count = 0
         for i in range(numepochs):
             for j in tqdm(range(math.ceil(X.shape[1]/batch_size))):
                 X_pass = X[:,j*batch_size:min(X.shape[1],(j+1)*batch_size)]
                 Y_pass = Y[j*batch_size:min(X.shape[1],(j+1)*batch_size)]
-                step_count +=1
-                if optimiser == "sgd":
-                    update = self.do_sgd(X_pass,Y_pass,update,learning_rate,l2_reg_param)
-                elif optimiser == "momentum":
-                    update = self.do_momentum(X_pass,Y_pass,update,gamma,learning_rate,l2_reg_param)
-                elif optimiser == "nesterov":
-                    update = self.do_nesterov(X_pass,Y_pass,update,gamma,learning_rate,l2_reg_param)
-                elif optimiser == "rmsprop":
-                    update = self.do_rmsprop(X_pass,Y_pass,update,learning_rate,beta,epsilon,l2_reg_param)
-                elif optimiser == "adam":
-                    update = self.do_adam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_count,l2_reg_param)
-                elif optimiser == "nadam":
-                    update = self.do_nadam(X_pass,Y_pass,update,learning_rate,epsilon,beta1,beta2,step_count,l2_reg_param)
-                else:
-                    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
+                step_count += 1
+                #try:
+                update = (self.optimisers[optimiser])( X_pass, Y_pass, update, learning_rate, gamma = gamma, beta = beta,\
+                        beta1 = beta1, beta2 = beta2, epsilon = epsilon, l2_reg_param = l2_reg_param, step_num = step_count)
+                #except:
+                #    raise(ValueError("Unknown optimiser \"" + optimiser + "\""))
                 Y_pred = self.predict(X)
                 self.accuracies.append(np.mean(np.argmax(Y_pred,axis=0)==Y))
                 self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
@@ -289,7 +282,7 @@ wandb.config.update({"dataset":"fashion_mnist","input_size":784,"output_size":10
 # %%
 nn = NeuralNet(wandb.config["input_size"],wandb.config["output_size"])
 for hidden_layer_size in wandb.config["hidden_layers"]:
-nn.addlayer(hidden_layer_size)
+    nn.addlayer(hidden_layer_size)
 nn.train(X_train,Y_train,wandb.config["epochs"],wandb.config["learning_rate"],\
          initialization_type=wandb.config["initialization_type"],activation=wandb.config["activation"],optimiser=wandb.config["optimiser"],\
          gamma=wandb.config["gamma"],batch_size=wandb.config["batch_size"],train_test_split=wandb.config["train_test_split"],seed=wandb.config["seed"],\
