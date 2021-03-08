@@ -114,6 +114,29 @@ class NeuralNet:
         return grads
 
     def do_sgd( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using standard
+        gradient descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Not used in this method.
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param is used in this method.
+        Returns
+        -------
+        update : dict
+            Parameter update is returned unaltered. This method(algorithm) does not require
+            any persistent memory across calls.
+        """
         layers = len(self.structure)-1
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
@@ -122,6 +145,28 @@ class NeuralNet:
         return update
 
     def do_momentum( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using momentum based
+        gradient descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Contains the previous weighted moving average of updates made to weights and biases
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param, gamma is used in this method.
+        Returns
+        -------
+        update : dict
+            Contains the new weighted moving average of updates made to weights and biases
+        """
         layers = len(self.structure)-1
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
@@ -132,6 +177,28 @@ class NeuralNet:
         return update
 
     def do_nesterov( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using nesterov algorithm
+        based gradient descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Contains the previous weighted moving average* of updates made to weights and biases
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param, gamma is used in this method.
+        Returns
+        -------
+        update : dict
+            Contains the new weighted moving average* of updates made to weights and biases
+        """
         layers = len(self.structure)-1
         for ii in range(1,layers+1):
             self.params["w"+str(ii)] -= kwargs["gamma"] * update.get("w"+str(ii),0)
@@ -145,6 +212,28 @@ class NeuralNet:
         return update
 
     def do_rmsprop( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using rmsprop based
+        gradient descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Contains the previous weighted average* of updates made to weights and biases
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param, beta, epsilon is used in this method.
+        Returns
+        -------
+        update : dict
+            Contains the new weighted average* of updates made to weights and biases
+        """
         layers = len(self.structure)-1
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
@@ -157,6 +246,28 @@ class NeuralNet:
         return update
 
     def do_adam( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using adam gradient
+        descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Contains the previous weighted average* of updates made to weights and biases
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param, step_num, beta1, beta2, epsilon is used in this method.
+        Returns
+        -------
+        update : dict
+            Contains the new weighted average* of updates made to weights and biases
+        """
         layers = len(self.structure)-1
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
@@ -171,6 +282,28 @@ class NeuralNet:
         return update
     
     def do_nadam( self, X, Y, update, learning_rate, **kwargs):
+        """
+        Performs a single step update of the weights and biases using adam gradient
+        descent optimisation technique.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        update : dict
+            Contains the previous weighted average* of updates made to weights and biases
+        learning_rate : float
+            Learning rate at which gradient descent is performed
+        **kwargs : dict
+            Named parameters gamma, beta, beta1, beta2, epsilon, l2_reg_param, step_num, ...
+            Only l2_reg_param, step_num, beta1, beta2, epsilon is used in this method.
+        Returns
+        -------
+        update : dict
+            Contains the new weighted average* of updates made to weights and biases
+        """
         layers = len(self.structure)-1
         grads = self.calculate_grads(X,Y,kwargs["l2_reg_param"])
         for ii in np.arange(1,layers+1):
@@ -186,7 +319,26 @@ class NeuralNet:
                                         ((1-kwargs["beta1"])/(1-kwargs["beta1"]**kwargs["step_num"]))*np.sum(grads["b"+str(ii)],axis=1).reshape(-1,1) ))
         return update
 
-    def get_loss(self,X,Y,l2_reg_param=0,Y_pred=None):
+    def get_loss( self, X, Y, l2_reg_param=0, Y_pred=None):
+        """
+        Returns the current loss value (objective function) given data and labels
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray (or) NoneType
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+            Used only if Y_pred is None.
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        l2_reg_param : float, optional, default=0
+            L2 Regularisation Parameter / Weight Decay
+        Y_pred : numpy.ndarray, optional, default=None
+            Predicted probability values for data X. X is ignored if Y_pred is provided
+        Returns
+        -------
+        float
+            Loss value given current weights, biases, data and labels
+        """
         weight_sum=0
         for ii in range(1,len(self.structure)):
             weight_sum += np.sum(np.square(self.params["w"+str(ii)]))
@@ -195,7 +347,46 @@ class NeuralNet:
         return (np.sum(-np.log(np.choose(Y,Y_pred))) + (l2_reg_param/2)*weight_sum) / len(Y)
         
 
-    def do_back_prop(self,X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param):
+    def do_back_prop( self, X, Y, X_cv, Y_cv, optimiser="sgd", gamma=0.1, numepochs=5, learning_rate=0.001,\
+        batch_size=32, beta=0.99, epsilon=0.0000001, beta1=0.9, beta2=0.999, l2_reg_param=0):
+        """
+        Performs back propagation with the given parameters/hyperparameters
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+            Data on which gradient descent is performed. Shape ( m_features, nsamples)
+        Y : numpy.ndarray
+            Labels of datapoints in X. Shape ( nsamples, )
+        X_cv : numpy.ndarray
+            Data on which cross validation is performed. Shape ( m_features, ksamples)
+        Y_cv : numpy.ndarray
+            Labels of datapoints in X_cv. Shape ( ksamples, )
+        optimiser : String, optional, default="sgd"
+            Optimisation algorithm to be used
+            Currently supported optimisers : "sgd", "momentum", "nesterov", "rmsprop", "adam", "nadam"
+        gamma : float, optional, default=0.1
+            Used in momentum, nesterov optimiser
+        numepochs : int, optional, default=5
+            Number of passes on data during training
+        learning_rate : float, optional, default=0.001
+            Learning Rate at which gradient descent is performed
+        batch_size : int, optional, default=32
+            Size of batch used in each step of batch gradient descent
+        beta : float, optional, default=0.99
+            Used in rmsprop optimiser
+        epsilon : float, optional, default=0.0000001
+            Used in rmsprop, adam, nadam optimisers
+        beta1 : float, optional, default=0.9
+            Used in adam, nadam optimisers
+        beta2 : float, optional, default=0.999
+            Used in adam, nadam optimisers
+        l2_reg_param : float, optional, default=0
+            L2 Regularisation Parameter / Weight Decay
+        Returns
+        -------
+        None
+        """
         layers = len(self.structure)-1
         update = {}
         step_count = 0
@@ -217,7 +408,7 @@ class NeuralNet:
                            "val_loss":self.cvlosses[-1],"step_count":step_count})
 
 
-    def train(self,X,Y,numepochs = 100,learning_rate = 0.1,initialization_type = "random",activation = "sigmoid",\
+    def train(self,X,Y,numepochs = 100,learning_rate = 0.001,initialization_type = "random",activation = "sigmoid",\
               optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=None,batch_size = 32,beta=0.99,\
               epsilon=0.0000001,beta1=0.9,beta2=0.999,l2_reg_param=0):
         if seed is None:
@@ -270,7 +461,7 @@ class NeuralNet:
             return predictions
         else:
             return values
-            
+       
 # %%
 (X_train,Y_train),(X_test,Y_test) = fashion_mnist.load_data()
 
