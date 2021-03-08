@@ -33,24 +33,104 @@ current_wandb_run = wandb.init(project = "fdl-a1",entity = "fdl-thops",config = 
 
 # %%
 class NeuralNet:
+    """
+    This class implements feed-forward neural-networks and back-propagation using a variety of algorithms.
+    Methods
+    -------
+    sigmoid(numpy.ndarray) : numpy.ndarray
 
+    tanh(numpy.ndarray) : numpy.ndarray
+
+    relu(numpy.ndarray) : numpy.ndarray
+
+    activate( numpy.ndarray, string) : numpy.ndarray
+
+    addlayer(int) : None
+
+    initialise_params(initialization_type = "random") : None
+
+    activation_gradient( numpy.ndarray, string) : numpy.ndarray
+
+    calculate_grads( numpy.ndarray, numpy.ndarray, float) : dict
+
+    do_sgd( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    do_momentum( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    do_nesterov( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    do_rmsprop( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    do_adam( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    do_nadam( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
+
+    get_loss( numpy.ndarray, numpy.ndarray, float, numpy.ndarray) : float
+
+    do_back_prop( numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray, string, float, int, float, int, float, float, float, float, float) : None
+
+    train( numpy.ndarray, numpy.ndarray, int, float, string, string, string, float, bool, float, int, int, float, float, float, float, float) : None
+    
+    predict( numpy.ndarray, int, int) : numpy.ndarray or dict
+    """
     @staticmethod
     def sigmoid(X):
+        """
+        Calculates the sigmoid of given input.
+        Parameters
+        ----------
+        X : numpy.ndarray
+        Returns
+        -------
+        numpy.ndarray
+        """
         X = np.clip( X, -700, 700)
         return 1 / (1. + np.exp(-X))
             
     @staticmethod
     def tanh(X):
+        """
+        Calculates the tanh of given input.
+        Parameters
+        ----------
+        X : numpy.ndarray
+        Returns
+        -------
+        numpy.ndarray
+        """
         X = np.clip( X, -350, 350)
         return (1 - np.exp(-2*X)) / (1 + np.exp(-2*X))
         
         
     @staticmethod
     def relu(X):
+        """
+        Calculates the relu of given input.
+        Parameters
+        ----------
+        X : numpy.ndarray
+        Returns
+        -------
+        numpy.ndarray
+        """
         return np.where( X<0, 0, X)
         
     @staticmethod
     def activate( X, activation = "sigmoid"):
+        """
+        Applies the given activation function to given input.
+        Parameters
+        ----------
+        X : numpy.ndarray
+        activation : string, default= "sigmoid"
+        Returns
+        -------
+        numpy.ndarray
+        Raises
+        ------
+        ValueError
+            If activation function is not known.
+        """
         if activation == "sigmoid":
             return NeuralNet.sigmoid(X)
         elif activation == "tanh":
@@ -67,9 +147,29 @@ class NeuralNet:
                            "rmsprop":self.do_rmsprop,"adam":self.do_adam,"nadam":self.do_nadam}
         
     def addlayer( self, layer_size):
+        """
+        Adds a hidden layer to current NeuralNet.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        layer_size : int
+        Returns
+        -------
+        None
+        """
         self.structure = self.structure[:-1] + [ layer_size, self.structure[-1]]
         
     def initialise_params( self, initialization_type = "random"):
+        """
+        Initialises all weights and biases according to given initialization type.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        initialization_type : string, default= "random"
+        Returns
+        -------
+        None
+        """
         self.init_type = initialization_type
         if self.init_type == "random":
             for i in range( 1, len(self.structure)):
@@ -86,6 +186,20 @@ class NeuralNet:
     
     @staticmethod
     def activation_gradient( A, activation = "sigmoid"):
+        """
+        Applies the derivative function of the given activation function to given input.
+        Parameters  
+        ----------
+        A : numpy.ndarray
+        activation : string, default: "sigmoid"
+        Returns
+        -------
+        numpy.ndarray
+        Raises
+        ------
+        ValueError
+            If activation function is not known. 
+        """
         if activation == "sigmoid":
             return np.multiply(A,(1-A))
         elif activation == "tanh":
@@ -98,6 +212,18 @@ class NeuralNet:
             raise(ValueError("Unknown activation \"" + activation + "\""))
 
     def calculate_grads( self, X, Y, l2_reg_param):
+        """
+        Calculates the gradients of loss function w.r.t pre-activations,activations,weights and biases in all layers.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+        Y : numpy.ndarray
+        l2_reg_param : float
+        Returns
+        -------
+        dict
+        """
         grads = {}
         values = self.predict(X,returndict=1)
         layers = len(self.structure)-1
@@ -220,6 +346,34 @@ class NeuralNet:
     def train(self,X,Y,numepochs = 100,learning_rate = 0.1,initialization_type = "random",activation = "sigmoid",\
               optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=None,batch_size = 32,beta=0.99,\
               epsilon=0.0000001,beta1=0.9,beta2=0.999,l2_reg_param=0):
+        """
+        Finds the values of weights and biases using back propagation.
+        Parameters
+        ----------
+        X : numpy.ndarray
+        Y : numpy.ndarray
+        numepochs : int, default= 100
+        learning_rate : float, default= 0.1
+        initialization_type : string, default= "random"
+        activation : string, default= "sigmoid"
+        optimiser : string, default= "sgd"
+        gamma : float, default= 0.1
+        init_params : bool, default= True
+            Specifies whether weights and biases should be initialised.
+        train_test_split : float, default= 0.2
+            Specifies the fraction of input data to be reserved for cross-validation.
+        seed : int, default= None
+            Used to seed the random splitting of input data.
+        batch_size : int, default= 32
+        beta : float, default= 0.99
+        epsilon : float, default= 0000001
+        beta1 : float, default= 0.9
+        beta2 : float, default= 0.999
+        l2_reg_param : float, default= 0
+        Returns
+        -------
+        None
+        """
         if seed is None:
             seed = np.random.randint(1,1000)
         if init_params == False and self.params == {}:
@@ -245,6 +399,27 @@ class NeuralNet:
 
     
     def predict(self,X,returndict = 0,returnclass = 0):
+        """
+        Predicts the probabilities of each class for the given input.
+        Parameters
+        ----------
+        self : NeuralNet Class Instance
+        X : numpy.ndarray
+        returndict : int, default= 0
+            The function will return a dictionary containing values of pre-activation and activation if returndict is 1.
+        returnclass : int, default= 0
+            The function will return the most probable class if returnClass is 1,else returns probability distribution over the output classes.
+        Returns
+        -------
+        numpy.ndarray
+            Probability distribution over the output classes for the given data. 
+        or 
+        numpy.ndarray
+            Most probable class for the given data. 
+        or
+        dict
+            Values of preactivation and activation of all layers.
+        """
         predictions = X
         if returndict == 1:
             values = {}
