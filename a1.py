@@ -39,37 +39,21 @@ class NeuralNet:
     Methods
     -------
     sigmoid(numpy.ndarray) : numpy.ndarray
-
     tanh(numpy.ndarray) : numpy.ndarray
-
     relu(numpy.ndarray) : numpy.ndarray
-
     activate( numpy.ndarray, string) : numpy.ndarray
-
     addlayer(int) : None
-
     initialise_params(initialization_type = "random") : None
-
     activation_gradient( numpy.ndarray, string) : numpy.ndarray
-
     calculate_grads( numpy.ndarray, numpy.ndarray, float) : dict
-
     do_sgd( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     do_momentum( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     do_nesterov( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     do_rmsprop( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     do_adam( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     do_nadam( numpy.ndarray, numpy.ndarray, dict, float, dict) : dict
-
     get_loss( numpy.ndarray, numpy.ndarray, float, numpy.ndarray) : float
-
     do_back_prop( numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray, string, float, int, float, int, float, float, float, float, float) : None
-
     train( numpy.ndarray, numpy.ndarray, int, float, string, string, string, float, bool, float, int, int, float, float, float, float, float) : None
     
     predict( numpy.ndarray, int, int) : numpy.ndarray or dict
@@ -141,11 +125,26 @@ class NeuralNet:
         else:
             raise(ValueError("Unknown activation \"" + activation + "\""))
 
-    def __init__( self, input_size, output_size = 2):
-        self.structure = [ input_size, output_size]
-        self.params = {}
+    def __init__( self, input_size, output_size = 2,load_model = False,**kwargs):
+        if load_model == False:
+            self.structure = [ input_size, output_size]
+            self.params = {}
+            self.accuracies = []
+            self.cvaccuracies = []
+            self.losses = []
+            self.cvlosses = []
+        else:
+            self.structure = kwargs["structure"]
+            self.params = kwargs["params"]
+            self.accuracies = kwargs["accuracies"]
+            self.cvaccuracies = kwargs["cvaccuracies"]
+            self.losses = kwargs["losses"]
+            self.cvlosses = kwargs["cvlosses"]
+            self.init_type = kwargs["init_type"]
+            self.activation = kwargs["activation"]
         self.optimisers = {"sgd":self.do_sgd,"momentum":self.do_momentum,"nesterov":self.do_nesterov,\
-                           "rmsprop":self.do_rmsprop,"adam":self.do_adam,"nadam":self.do_nadam}
+                              "rmsprop":self.do_rmsprop,"adam":self.do_adam,"nadam":self.do_nadam}
+        
         
     def addlayer( self, layer_size):
         """
@@ -475,7 +474,7 @@ class NeuralNet:
         
 
     def do_back_prop( self, X, Y, X_cv, Y_cv, optimiser="sgd", gamma=0.1, numepochs=5, learning_rate=0.001,\
-        batch_size=32, beta=0.99, epsilon=0.0000001, beta1=0.9, beta2=0.999, l2_reg_param=0):
+        batch_size=32, beta=0.99, epsilon=0.0000001, beta1=0.9, beta2=0.999, l2_reg_param=0,do_wandb=False):
         """
         Performs back propagation with the given parameters/hyperparameters
         Parameters
@@ -518,7 +517,8 @@ class NeuralNet:
         update = {}
         step_count = 0
         for i in range(numepochs):
-            wandb.log({"Sample Data":[wandb.Image(X[:,jj].reshape(28,28),caption=dataset_labels[Y[jj]])\
+            if do_wandb == True:
+                wandb.log({"Sample Data":[wandb.Image(X[:,jj].reshape(28,28),caption=dataset_labels[Y[jj]])\
                                       for jj in range(20*i,20*i+20)]},commit = False)
             for j in tqdm(range(math.ceil(X.shape[1]/batch_size))):
                 X_pass = X[:,j*batch_size:min(X.shape[1],(j+1)*batch_size)]
@@ -531,13 +531,14 @@ class NeuralNet:
                 self.cvaccuracies.append(np.mean(self.predict(X_cv,returnclass=1)==Y_cv))
                 self.losses.append(self.get_loss(None,Y,l2_reg_param,Y_pred))
                 self.cvlosses.append(self.get_loss(X_cv,Y_cv,l2_reg_param))
-                wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"val_acc":self.cvaccuracies[-1],\
+                if do_wandb == True:
+                    wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"val_acc":self.cvaccuracies[-1],\
                            "val_loss":self.cvlosses[-1],"step_count":step_count})
 
 
     def train(self,X,Y,numepochs = 100,learning_rate = 0.001,initialization_type = "random",activation = "sigmoid",\
               optimiser = "sgd",gamma=0.1,init_params=True,train_test_split=0.2,seed=None,batch_size = 32,beta=0.99,\
-              epsilon=0.0000001,beta1=0.9,beta2=0.999,l2_reg_param=0):
+              epsilon=0.0000001,beta1=0.9,beta2=0.999,l2_reg_param=0,do_wandb=False):
         """
         Finds the values of weights and biases using back propagation.
         Parameters
@@ -583,11 +584,7 @@ class NeuralNet:
         temp = X.shape[1]
         X = X[:,int(temp*train_test_split):] 
         Y = Y[int(temp*train_test_split):]
-        self.accuracies = []
-        self.cvaccuracies = []
-        self.losses = []
-        self.cvlosses = []
-        self.do_back_prop(X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param)
+        self.do_back_prop(X,Y,X_cv,Y_cv,optimiser,gamma,numepochs,learning_rate,batch_size,beta,epsilon,beta1,beta2,l2_reg_param,do_wandb)
 
     
     def predict(self,X,returndict = 0,returnclass = 0):
@@ -638,13 +635,17 @@ class NeuralNet:
         else:
             return values
 
-    def load_model( self, filename):
+    @staticmethod
+    def load_model(filename):
         with open(filename, "rb") as f:
-            self.structure, self.params = pickle.load(f)
-
+            activation, structure, params, accuracies, cvaccuracies, losses, cvlosses, init_type = pickle.load(f)
+        nn = NeuralNet(None,None,load_model=True,structure=structure,params=params,accuracies=accuracies,cvaccuracies=cvaccuracies,\
+                       losses=losses,cvlosses=cvlosses,init_type=init_type,activation=activation)
+        return nn
+    
     def save_model( self, filename):
         with open(filename, "wb") as f:
-            pickle.dump( [self.structure, self.params], f)
+            pickle.dump( [self.activation, self.structure, self.params, self.accuracies, self.cvaccuracies, self.losses, self.cvlosses, self.init_type], f)
 
        
 # %%
