@@ -639,11 +639,11 @@ class NeuralNet:
             return values
 
     def load_model( self, filename):
-        with open(filename, "r") as f:
+        with open(filename, "rb") as f:
             self.structure, self.params = pickle.load(f)
 
     def save_model( self, filename):
-        with open(filename, "w") as f:
+        with open(filename, "wb") as f:
             pickle.dump( [self.structure, self.params], f)
 
        
