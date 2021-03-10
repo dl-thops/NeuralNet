@@ -20,6 +20,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import math
 import wandb
+import pickle
 
 # %%
 wandb.login()
@@ -636,6 +637,15 @@ class NeuralNet:
             return predictions
         else:
             return values
+
+    def load_model( self, filename):
+        with open(filename, "r") as f:
+            self.structure, self.params = pickle.load(f)
+
+    def save_model( self, filename):
+        with open(filename, "w") as f:
+            pickle.dump( [self.structure, self.params], f)
+
        
 # %%
 (X_train,Y_train),(X_test,Y_test) = fashion_mnist.load_data()
