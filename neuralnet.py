@@ -2,7 +2,6 @@ import numpy as np
 from tqdm import tqdm
 import math
 import pickle
-import wandb
 class NeuralNet:
     """
     This class implements feed-forward neural-networks and back-propagation using a variety of algorithms.
@@ -488,6 +487,7 @@ class NeuralNet:
         step_count = 0
         for i in range(numepochs):
             if do_wandb == True:
+                import wandb
                 if dataset_labels is None:
                     dataset_labels = {i:str(i) for  i in range(self.structure[-1])}
                 wandb.log({"Sample Data":[wandb.Image(X[:,jj].reshape(28,28),caption=dataset_labels[Y[jj]])\
@@ -506,6 +506,7 @@ class NeuralNet:
                 self.losses.append(self.get_loss(None,Y,l2_reg_param,Y_pred))
                 self.cvlosses.append(self.get_loss(X_cv,Y_cv,l2_reg_param))
                 if do_wandb == True:
+                    import wandb
                     wandb.log({"train_acc":self.accuracies[-1],"train_loss":self.losses[-1],"val_acc":self.cvaccuracies[-1],\
                            "val_loss":self.cvlosses[-1],"step_count":step_count})
 
