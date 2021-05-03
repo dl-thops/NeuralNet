@@ -76,8 +76,3 @@ The NeuralNet class has support for the following features/parameters support:
 - Variable batch sizes ( Batch Gradient Descent )
 - Train - Cross Validation split
 - L2 Regularisation / Weight Decay
-
-## Project Report
-This repository is a part of our Course Assignment ([CS6910](http://www.cse.iitm.ac.in/~miteshk/#teaching) - Fundamentals of Deep Learning). 
-
-We have trained deep neural networks using this NeuralNet module and summarised our findings in this [W&B Report](https://wandb.ai/fdl-thops/fdl-a1/reports/Assignment-1-Report--Vmlldzo1MTIwNzU)
