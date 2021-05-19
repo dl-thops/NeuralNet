@@ -1,39 +1,26 @@
 # NeuralNet
 ## Table of Contents
-1. [Introduction](https://github.com/whitezeta/cs6910_a1#introduction)
-2. [Download](https://github.com/whitezeta/cs6910_a1#download)
-3. [Quick Start](https://github.com/whitezeta/cs6910_a1#quick-start)
-4. [Features](https://github.com/whitezeta/cs6910_a1#features)
-5. [Project Report](https://github.com/whitezeta/cs6910_a1#project-report)
+1. [Introduction](https://github.com/dl-thops/NeuralNet#introduction)
+2. [Download](https://github.com/dl-thops/NeuralNet#download)
+3. [Quick Start](https://github.com/dl-thops/NeuralNet#quick-start)
+4. [Features](https://github.com/dl-thops/NeuralNet#features)
+5. [Project Report](https://github.com/dl-thops/NeuralNet#project-report)
 
 ## Introduction
 This repository contains an implementation of a Feed Forward Neural Network from scratch using numpy libraries. We have achieved a testing accuracy of 97.45% on MNIST Dataset and a 88.80.% testing accuracy on Fashion-MNIST Dataset.
 
-You can also find a GPU version of the class NeuralNet in [ctrain<span>.py</span>](https://github.com/whitezeta/cs6910_a1/blob/master/ctrain.py) (Uses cupy instead of numpy(CuDa compatible)). We have found about 50~100 x speed boost in training time. We will release the cupy version module soon.
+You can also find a GPU version of the class NeuralNet in [ctrain<span>.py</span>](https://github.com/dl-thops/NeuralNet/blob/master/ctrain.py) (Uses cupy instead of numpy(CuDa compatible)). We have found about 50~100 x speed boost in training time. We will release the cupy version module soon.
 
 ## Download
-You can view the source code for the NeuralNet class implementation from this [page](https://github.com/whitezeta/cs6910_a1/blob/master/neuralnet.py). Simply download the file neuralnet<span>.py</span> from this repository and follow the quick start code to use the NeuralNet.
+You can view the source code for the NeuralNet class implementation from this [page](https://github.com/dl-thops/NeuralNet/blob/master/neuralnet.py).
 
-The module requires installation of following packages
-
- - numpy
- 
-  ```$ pip install numpy```
- - tqdm
- 
-  ```$ pip install tqdm```
- - pickle
- 
-  ```$ pip install pickle```
- - wandb (Optional)
- 
-  ```$ pip install wandb```
+`pip install NNeuralNet`
 
 
 ## Quick Start
 #### Training
 ```
-from neuralnet import NeuralNet
+from NNeuralNet.NeuralNet import NeuralNet
 from keras.datasets import mnist
 
 # Import and Preprocess Data
